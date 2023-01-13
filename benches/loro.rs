@@ -1,5 +1,5 @@
 use crdt_bench_native::{entry, Crdt};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::criterion_main;
 use loro_core::{
     container::registry::ContainerWrapper, log_store::EncodeConfig, LoroCore, VersionVector,
 };
@@ -27,15 +27,19 @@ impl Crdt for LoroDoc {
         }
     }
 
-    fn insert_text(&mut self, pos: usize, text: &str) {
+    fn text_insert(&mut self, pos: usize, text: &str) {
         self.text.insert(&self.doc, pos, text).unwrap();
+    }
+
+    fn text_del(&mut self, pos: usize, len: usize) {
+        self.text.delete(&self.doc, pos, len).unwrap();
     }
 
     fn get_text(&self) -> Box<str> {
         self.text.get_value().into_string().unwrap()
     }
 
-    fn insert_list(&mut self, pos: usize, num: i32) {
+    fn list_insert(&mut self, pos: usize, num: i32) {
         self.list.insert(&self.doc, pos, num).unwrap();
     }
 
@@ -49,7 +53,7 @@ impl Crdt for LoroDoc {
             .collect()
     }
 
-    fn insert_map(&mut self, key: &str, num: i32) {
+    fn map_insert(&mut self, key: &str, num: i32) {
         self.map.insert(&self.doc, key, num).unwrap();
     }
 
@@ -63,22 +67,30 @@ impl Crdt for LoroDoc {
             .collect()
     }
 
-    fn encode(&self, version: Self::Version) -> Vec<u8> {
-        let vv = VersionVector::decode(&version).unwrap();
-        self.doc.encode(EncodeConfig::from_vv(Some(vv))).unwrap()
+    fn encode(&self, version: Option<Self::Version>) -> Vec<u8> {
+        let vv = version.map(|version| VersionVector::decode(&version).unwrap());
+        self.doc.encode(EncodeConfig::from_vv(vv)).unwrap()
     }
 
-    fn decode(&mut self, update: Vec<u8>) {
-        self.doc.decode(&update).unwrap()
+    fn decode(&mut self, update: &[u8]) {
+        self.doc.decode(update).unwrap()
     }
 
     fn version(&self) -> Self::Version {
         self.doc.vv_cloned().encode()
     }
+
+    fn list_del(&mut self, pos: usize, len: usize) {
+        self.list.delete(&self.doc, pos, len).unwrap();
+    }
+
+    fn map_del(&mut self, key: &str) {
+        self.map.delete(&self.doc, key).unwrap();
+    }
 }
 
 pub fn loro() {
-    entry::<LoroDoc>();
+    entry::<LoroDoc>("loro");
 }
 
 criterion_main!(loro);
