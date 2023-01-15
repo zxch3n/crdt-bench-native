@@ -16,7 +16,11 @@ serde_json = "1.0.89"
 yrs = "0.14.1"
 automerge = "0.2.0"
 diamond-types = "1.0.0"
+arref = "0.1.0"
 
+[[bench]]
+name = "automerge"
+harness = false
 
 [[bench]]
 name = "loro"
@@ -24,4 +28,8 @@ harness = false
 
 [[bench]]
 name = "yrs"
+harness = false
+
+[[bench]]
+name = "diamond-type"
 harness = false

@@ -73,7 +73,7 @@ impl Crdt for YrsDoc {
         //     .collect()
     }
 
-    fn encode(&self, version: Option<Self::Version>) -> Vec<u8> {
+    fn encode(&mut self, version: Option<Self::Version>) -> Vec<u8> {
         match version {
             Some(version) => self.doc.transact_mut().encode_diff_v1(&version),
             None => self.doc.transact_mut().encode_update_v2(),

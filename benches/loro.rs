@@ -67,7 +67,7 @@ impl Crdt for LoroDoc {
             .collect()
     }
 
-    fn encode(&self, version: Option<Self::Version>) -> Vec<u8> {
+    fn encode(&mut self, version: Option<Self::Version>) -> Vec<u8> {
         let vv = version.map(|version| VersionVector::decode(&version).unwrap());
         self.doc.encode(EncodeConfig::from_vv(vv)).unwrap()
     }

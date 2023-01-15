@@ -11,13 +11,38 @@ pub fn bench_random_list_insert<C: Crdt>(n: usize) {
     let mut crdt_new = C::create();
     for i in 0..n {
         crdt.list_insert(rng.gen::<usize>() % (i + 1), i as i32);
-        merge(&mut crdt_new, &crdt);
+        merge(&mut crdt_new, &mut crdt);
     }
 }
 
-fn list_random_insert_10k<C: Crdt>(c: &mut BenchmarkGroup<WallTime>) {
-    c.bench_function("list_random_insert_10k", |b| {
-        b.iter(|| bench_random_list_insert::<C>(black_box(10_000)))
+fn list_random_insert_1k<C: Crdt>(c: &mut BenchmarkGroup<WallTime>) {
+    c.bench_function("list_random_insert_1k", |b| {
+        b.iter(|| bench_random_list_insert::<C>(black_box(1_000)))
+    });
+}
+
+fn concurrent_list_inserts<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
+    b.bench_function("concurrent list inserts", |b| {
+        b.iter(|| {
+            let mut docs = vec![];
+            for _ in 0..100 {
+                docs.push(C::create());
+            }
+
+            for doc in docs.iter_mut() {
+                doc.text_insert(0, "123");
+            }
+
+            for i in 1..100 {
+                let (a, b) = arref::array_mut_ref!(&mut docs, [0, i]);
+                merge(a, b);
+            }
+
+            for i in 1..100 {
+                let (a, b) = arref::array_mut_ref!(&mut docs, [0, i]);
+                merge(b, a);
+            }
+        });
     });
 }
 
@@ -49,14 +74,14 @@ fn apply_automerge_paper<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
     }
     b.bench_function("automerge - encode time", |b| {
         b.iter(|| {
-            let _ = crdt.encode(None);
+            black_box(crdt.encode(None));
         })
     });
     let encoded = crdt.encode(None);
     b.bench_function("automerge - decode time", |b| {
         b.iter(|| {
             let mut new_crdt = C::create();
-            new_crdt.decode(&encoded);
+            new_crdt.decode(black_box(&encoded));
         })
     });
 }
@@ -67,6 +92,7 @@ pub fn entry<C: Crdt>(name: &str) {
         .measurement_time(Duration::from_secs(1))
         .sample_size(10);
     let mut b = criterion.benchmark_group(name);
-    list_random_insert_10k::<C>(&mut b);
+    list_random_insert_1k::<C>(&mut b);
+    concurrent_list_inserts::<C>(&mut b);
     apply_automerge_paper::<C>(&mut b);
 }

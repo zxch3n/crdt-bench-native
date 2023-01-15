@@ -16,12 +16,12 @@ pub trait Crdt {
     fn map_insert(&mut self, key: &str, num: i32);
     fn map_del(&mut self, key: &str);
     fn get_map(&self) -> HashMap<String, i32>;
-    fn encode(&self, version: Option<Self::Version>) -> Vec<u8>;
+    fn encode(&mut self, version: Option<Self::Version>) -> Vec<u8>;
     fn decode(&mut self, update: &[u8]);
     fn version(&self) -> Self::Version;
 }
 
 #[inline(always)]
-pub fn merge<C: Crdt>(a: &mut C, b: &C) {
+pub fn merge<C: Crdt>(a: &mut C, b: &mut C) {
     a.decode(&b.encode(Some(a.version())))
 }
