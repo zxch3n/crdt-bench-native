@@ -36,7 +36,7 @@ impl Crdt for DiamondTypeDoc {
         self.doc.delete(0, pos..len + pos);
     }
 
-    fn get_text(&self) -> Box<str> {
+    fn get_text(&mut self) -> Box<str> {
         self.doc.branch.content().to_string().into_boxed_str()
     }
 
@@ -48,7 +48,7 @@ impl Crdt for DiamondTypeDoc {
         self.doc.delete(0, pos..pos + len);
     }
 
-    fn get_list(&self) -> Vec<i32> {
+    fn get_list(&mut self) -> Vec<i32> {
         todo!()
     }
 
@@ -56,7 +56,7 @@ impl Crdt for DiamondTypeDoc {
 
     fn map_del(&mut self, key: &str) {}
 
-    fn get_map(&self) -> std::collections::HashMap<String, i32> {
+    fn get_map(&mut self) -> std::collections::HashMap<String, i32> {
         todo!()
         // let t = self.doc.transact();
         // self.map
@@ -70,7 +70,7 @@ impl Crdt for DiamondTypeDoc {
 
     fn encode(&mut self, version: Option<Self::Version>) -> Vec<u8> {
         match version {
-            Some(version) => self.doc.oplog.encode(ENCODE_FULL),
+            Some(_) => self.doc.oplog.encode(ENCODE_FULL),
             None => self.doc.oplog.encode(ENCODE_FULL),
         }
     }

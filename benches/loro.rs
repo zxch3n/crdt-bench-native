@@ -1,14 +1,12 @@
 use crdt_bench_native::{entry, Crdt};
 use criterion::criterion_main;
-use loro_core::{
-    container::registry::ContainerWrapper, log_store::EncodeConfig, LoroCore, VersionVector,
-};
+use loro_internal::{container::registry::ContainerWrapper, LoroCore, VersionVector};
 
 struct LoroDoc {
     doc: LoroCore,
-    map: loro_core::Map,
-    list: loro_core::List,
-    text: loro_core::Text,
+    map: loro_internal::Map,
+    list: loro_internal::List,
+    text: loro_internal::Text,
 }
 
 impl Crdt for LoroDoc {
@@ -35,7 +33,7 @@ impl Crdt for LoroDoc {
         self.text.delete(&self.doc, pos, len).unwrap();
     }
 
-    fn get_text(&self) -> Box<str> {
+    fn get_text(&mut self) -> Box<str> {
         self.text.get_value().into_string().unwrap()
     }
 
@@ -43,7 +41,7 @@ impl Crdt for LoroDoc {
         self.list.insert(&self.doc, pos, num).unwrap();
     }
 
-    fn get_list(&self) -> Vec<i32> {
+    fn get_list(&mut self) -> Vec<i32> {
         self.list
             .get_value()
             .into_list()
@@ -57,7 +55,7 @@ impl Crdt for LoroDoc {
         self.map.insert(&self.doc, key, num).unwrap();
     }
 
-    fn get_map(&self) -> std::collections::HashMap<String, i32> {
+    fn get_map(&mut self) -> std::collections::HashMap<String, i32> {
         self.map
             .get_value()
             .into_map()
@@ -69,7 +67,7 @@ impl Crdt for LoroDoc {
 
     fn encode(&mut self, version: Option<Self::Version>) -> Vec<u8> {
         let vv = version.map(|version| VersionVector::decode(&version).unwrap());
-        self.doc.encode(EncodeConfig::from_vv(vv)).unwrap()
+        self.doc.encode_from(vv.unwrap_or_default())
     }
 
     fn decode(&mut self, update: &[u8]) {

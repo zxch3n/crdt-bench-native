@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 rand = "0.8.5"
 criterion = "0.4.0"
-loro-core = { path = "../loro/crates/loro-core" }
+loro-internal = { path = "../loro/crates/loro-internal" }
 arbitrary = { version = "1.2.0", features = ["derive"] }
 enum-as-inner = "0.5.1"
 flate2 = "1.0.25"

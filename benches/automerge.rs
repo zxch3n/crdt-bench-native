@@ -8,6 +8,7 @@ struct AutomergeDoc {
     doc: AutoCommit,
     text: ObjId,
     list: ObjId,
+    map: ObjId,
 }
 
 impl Crdt for AutomergeDoc {
@@ -18,7 +19,13 @@ impl Crdt for AutomergeDoc {
         d.set_actor(automerge::ActorId::random());
         let text = d.put_object(ROOT, "text", ObjType::Text).unwrap();
         let list = d.put_object(ROOT, "list", ObjType::List).unwrap();
-        AutomergeDoc { doc: d, text, list }
+        let map = d.put_object(ROOT, "map", ObjType::Map).unwrap();
+        AutomergeDoc {
+            doc: d,
+            text,
+            list,
+            map,
+        }
     }
 
     fn text_insert(&mut self, pos: usize, text: &str) {
@@ -29,7 +36,7 @@ impl Crdt for AutomergeDoc {
         self.doc.splice_text(&self.text, pos, len, "").unwrap();
     }
 
-    fn get_text(&self) -> Box<str> {
+    fn get_text(&mut self) -> Box<str> {
         self.doc.text(&self.text).unwrap().into_boxed_str()
     }
 
@@ -41,19 +48,19 @@ impl Crdt for AutomergeDoc {
         self.doc.splice(&self.list, pos, len, []).unwrap();
     }
 
-    fn get_list(&self) -> Vec<i32> {
+    fn get_list(&mut self) -> Vec<i32> {
         todo!()
     }
 
     fn map_insert(&mut self, key: &str, num: i32) {
-        todo!()
+        self.doc.put(&self.map, key, num).unwrap();
     }
 
     fn map_del(&mut self, key: &str) {
-        todo!()
+        self.doc.delete(&self.map, key).unwrap();
     }
 
-    fn get_map(&self) -> std::collections::HashMap<String, i32> {
+    fn get_map(&mut self) -> std::collections::HashMap<String, i32> {
         todo!()
         // let t = self.doc.transact();
         // self.map

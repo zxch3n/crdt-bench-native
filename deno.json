@@ -1,0 +1,5 @@
+{
+  "tasks": {
+    "gen": "deno run -A scripts/gen-report.ts"
+  }
+}

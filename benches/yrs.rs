@@ -35,7 +35,7 @@ impl Crdt for YrsDoc {
             .remove_range(&mut self.doc.transact_mut(), pos as u32, len as u32)
     }
 
-    fn get_text(&self) -> Box<str> {
+    fn get_text(&mut self) -> Box<str> {
         self.text.get_string(&self.doc.transact()).into_boxed_str()
     }
 
@@ -49,7 +49,7 @@ impl Crdt for YrsDoc {
             .remove_range(&mut self.doc.transact_mut(), pos as u32, len as u32);
     }
 
-    fn get_list(&self) -> Vec<i32> {
+    fn get_list(&mut self) -> Vec<i32> {
         todo!()
     }
 
@@ -61,7 +61,7 @@ impl Crdt for YrsDoc {
         self.map.remove(&mut self.doc.transact_mut(), key);
     }
 
-    fn get_map(&self) -> std::collections::HashMap<String, i32> {
+    fn get_map(&mut self) -> std::collections::HashMap<String, i32> {
         todo!()
         // let t = self.doc.transact();
         // self.map
