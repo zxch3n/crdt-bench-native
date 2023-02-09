@@ -1,6 +1,10 @@
 use crdt_bench_native::{entry, Crdt};
 use criterion::criterion_main;
-use loro_internal::{container::registry::ContainerWrapper, LoroCore, VersionVector};
+use loro_internal::{
+    container::registry::ContainerWrapper,
+    log_store::{EncodeConfig, EncodeMode},
+    LoroCore, VersionVector,
+};
 
 struct LoroDoc {
     doc: LoroCore,
@@ -65,13 +69,20 @@ impl Crdt for LoroDoc {
             .collect()
     }
 
-    fn encode(&mut self, version: Option<Self::Version>) -> Vec<u8> {
-        let vv = version.map(|version| VersionVector::decode(&version).unwrap());
-        self.doc.encode_from(vv.unwrap_or_default())
+    fn encode_full(&mut self) -> Vec<u8> {
+        self.doc
+            .encode_with_cfg(EncodeConfig::new(EncodeMode::Snapshot).without_compress())
     }
 
-    fn decode(&mut self, update: &[u8]) {
+    fn decode_full(&mut self, update: &[u8]) {
         self.doc.decode(update).unwrap()
+    }
+
+    fn merge(&mut self, other: &mut Self) {
+        let a_to_b = self.doc.encode_from(other.doc.vv_cloned());
+        let b_to_a = other.doc.encode_from(self.doc.vv_cloned());
+        self.doc.decode(&b_to_a).unwrap();
+        other.doc.decode(&a_to_b).unwrap();
     }
 
     fn version(&self) -> Self::Version {

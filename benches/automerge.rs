@@ -1,6 +1,8 @@
-use std::sync::Arc;
-
-use automerge::{transaction::Transactable, ActorId, AutoCommit, Automerge, ObjId, ObjType, ROOT};
+use automerge::{
+    sync::{State, SyncDoc},
+    transaction::Transactable,
+    AutoCommit, ObjId, ObjType, ROOT,
+};
 use crdt_bench_native::{entry, Crdt};
 use criterion::criterion_main;
 
@@ -37,7 +39,8 @@ impl Crdt for AutomergeDoc {
     }
 
     fn get_text(&mut self) -> Box<str> {
-        self.doc.text(&self.text).unwrap().into_boxed_str()
+        // self.doc.(&self.text).unwrap().into_boxed_str()
+        "".to_string().into_boxed_str()
     }
 
     fn list_insert(&mut self, pos: usize, num: i32) {
@@ -72,17 +75,53 @@ impl Crdt for AutomergeDoc {
         //     .collect()
     }
 
-    fn encode(&mut self, version: Option<Self::Version>) -> Vec<u8> {
+    fn encode_full(&mut self) -> Vec<u8> {
         self.doc.save()
     }
 
-    fn decode(&mut self, update: &[u8]) {
-        self.doc.load_incremental(&update).unwrap();
+    fn decode_full(&mut self, update: &[u8]) {
+        self.doc.load_incremental(update).unwrap();
     }
 
-    fn version(&self) -> Self::Version {
-        ()
+    fn merge(&mut self, other: &mut Self) {
+        let mut state_a = State::new();
+        let mut state_b = State::new();
+        // sync version
+        let to_b = self.doc.sync().generate_sync_message(&mut state_a).unwrap();
+        let to_a = other
+            .doc
+            .sync()
+            .generate_sync_message(&mut state_b)
+            .unwrap();
+        other
+            .doc
+            .sync()
+            .receive_sync_message(&mut state_b, to_b)
+            .unwrap();
+        self.doc
+            .sync()
+            .receive_sync_message(&mut state_a, to_a)
+            .unwrap();
+
+        // sync state
+        let Some(to_b) = self.doc.sync().generate_sync_message(&mut state_a) else { return };
+        let to_a = other
+            .doc
+            .sync()
+            .generate_sync_message(&mut state_b)
+            .unwrap();
+        other
+            .doc
+            .sync()
+            .receive_sync_message(&mut state_b, to_b)
+            .unwrap();
+        self.doc
+            .sync()
+            .receive_sync_message(&mut state_a, to_a)
+            .unwrap();
     }
+
+    fn version(&self) -> Self::Version {}
 }
 
 pub fn bench() {

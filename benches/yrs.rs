@@ -73,21 +73,34 @@ impl Crdt for YrsDoc {
         //     .collect()
     }
 
-    fn encode(&mut self, version: Option<Self::Version>) -> Vec<u8> {
-        match version {
-            Some(version) => self.doc.transact_mut().encode_diff_v1(&version),
-            None => self.doc.transact_mut().encode_update_v2(),
-        }
-    }
-
-    fn decode(&mut self, update: &[u8]) {
+    fn encode_full(&mut self) -> Vec<u8> {
         self.doc
             .transact_mut()
-            .apply_update(Update::decode_v1(update).unwrap())
+            .encode_state_as_update_v2(&Default::default())
+    }
+
+    fn decode_full(&mut self, update: &[u8]) {
+        self.doc
+            .transact_mut()
+            .apply_update(Update::decode_v2(update).unwrap())
     }
 
     fn version(&self) -> Self::Version {
         self.doc.transact_mut().before_state().clone()
+    }
+
+    fn merge(&mut self, other: &mut Self) {
+        let a = self.doc.transact_mut().before_state().clone();
+        let b = other.doc.transact_mut().before_state().clone();
+        let a_to_b = self.doc.transact_mut().encode_state_as_update_v2(&b);
+        let b_to_a = other.doc.transact_mut().encode_state_as_update_v2(&a);
+        self.doc
+            .transact_mut()
+            .apply_update(Update::decode_v2(&b_to_a).unwrap());
+        other
+            .doc
+            .transact_mut()
+            .apply_update(Update::decode_v2(&a_to_b).unwrap());
     }
 }
 

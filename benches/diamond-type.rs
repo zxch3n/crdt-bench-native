@@ -1,12 +1,9 @@
 use crdt_bench_native::{entry, Crdt};
 use criterion::criterion_main;
-use diamond_types::{
-    list::{
-        encoding::{ENCODE_FULL, ENCODE_PATCH},
-        remote_ids::RemoteId,
-        ListCRDT,
-    },
-    AgentId,
+use diamond_types::list::{
+    encoding::{EncodeOptions, ENCODE_FULL},
+    remote_ids::RemoteId,
+    ListCRDT,
 };
 use rand::Rng;
 
@@ -21,7 +18,7 @@ impl Crdt for DiamondTypeDoc {
     fn create() -> Self {
         let mut doc = ListCRDT::new();
         let id: u64 = rand::thread_rng().gen();
-        let inner_id = doc.get_or_create_agent_id(&id.to_string());
+        let _ = doc.get_or_create_agent_id(&id.to_string());
         DiamondTypeDoc {
             doc,
             id: id.to_string(),
@@ -68,18 +65,25 @@ impl Crdt for DiamondTypeDoc {
         //     .collect()
     }
 
-    fn encode(&mut self, version: Option<Self::Version>) -> Vec<u8> {
-        match version {
-            Some(_) => self.doc.oplog.encode(ENCODE_FULL),
-            None => self.doc.oplog.encode(ENCODE_FULL),
-        }
+    fn encode_full(&mut self) -> Vec<u8> {
+        self.doc.oplog.encode(ENCODE_FULL)
     }
 
-    fn decode(&mut self, update: &[u8]) {
+    fn decode_full(&mut self, update: &[u8]) {
         self.doc.oplog.decode_and_add(update).unwrap();
         self.doc
             .branch
             .merge(&self.doc.oplog, self.doc.oplog.local_version_ref())
+    }
+
+    fn merge(&mut self, other: &mut Self) {
+        // FIXME: not accurate. didn't find a api to do patch update directly.
+        // Currently the encode_from api requires that the given version is contained by the local version.
+        // It's not the case when two sites have parallel edits.
+        let a_to_b = self.doc.oplog.encode(EncodeOptions::default());
+        let b_to_a = other.doc.oplog.encode(EncodeOptions::default());
+        self.decode_full(&b_to_a);
+        other.decode_full(&a_to_b);
     }
 
     fn version(&self) -> Self::Version {

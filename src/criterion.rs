@@ -74,14 +74,14 @@ fn apply_automerge_paper<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
     }
     b.bench_function("automerge - encode time", |b| {
         b.iter(|| {
-            black_box(crdt.encode(None));
+            black_box(crdt.encode_full());
         })
     });
-    let encoded = crdt.encode(None);
+    let encoded = crdt.encode_full();
     b.bench_function("automerge - decode time", |b| {
         b.iter(|| {
             let mut new_crdt = C::create();
-            new_crdt.decode(black_box(&encoded));
+            new_crdt.decode_full(black_box(&encoded));
         })
     });
 }
