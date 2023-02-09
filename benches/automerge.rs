@@ -76,7 +76,7 @@ impl Crdt for AutomergeDoc {
     }
 
     fn encode_full(&mut self) -> Vec<u8> {
-        self.doc.save()
+        self.doc.save_nocompress()
     }
 
     fn decode_full(&mut self, update: &[u8]) {
