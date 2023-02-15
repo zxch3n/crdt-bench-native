@@ -3,7 +3,7 @@ use std::{collections::HashMap, rc::Rc};
 use crate::Crdt;
 use diamond_types::{
     list::{
-        encoding::{EncodeOptions, ENCODE_FULL, ENCODE_PATCH},
+        encoding::{ENCODE_FULL, ENCODE_PATCH},
         remote_ids::RemoteId,
         ListCRDT,
     },
@@ -13,7 +13,7 @@ use rand::Rng;
 
 pub struct DiamondTypeDoc {
     doc: ListCRDT,
-    _id: Rc<String>,
+    id: Rc<String>,
     compression: bool,
     connections: HashMap<Rc<String>, LocalVersion>,
     gc: bool,
@@ -25,7 +25,7 @@ impl DiamondTypeDoc {
     }
 
     pub fn encode_for(&self, other: &Self) -> Vec<u8> {
-        if let Some(other_version) = self.connections.get(&other._id) {
+        if let Some(other_version) = self.connections.get(&other.id) {
             self.doc.oplog.encode_from(ENCODE_PATCH, other_version)
         } else {
             self.doc.oplog.encode(ENCODE_FULL)
@@ -35,7 +35,7 @@ impl DiamondTypeDoc {
     pub fn merge_other(&mut self, other: &Self, update: &[u8]) {
         self.decode_full(update);
         self.connections.insert(
-            other._id.clone(),
+            other.id.clone(),
             self.doc
                 .oplog
                 .remote_to_local_version(other.version().iter()),
@@ -55,7 +55,7 @@ impl Crdt for DiamondTypeDoc {
         let _ = doc.get_or_create_agent_id(&id.to_string());
         DiamondTypeDoc {
             doc,
-            _id: Rc::new(id.to_string()),
+            id: Rc::new(id.to_string()),
             compression,
             connections: Default::default(),
             gc,

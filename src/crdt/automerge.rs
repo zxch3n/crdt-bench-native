@@ -18,7 +18,7 @@ impl Crdt for AutomergeDoc {
     fn name() -> &'static str {
         "automerge"
     }
-    fn create(gc: bool, compression: bool) -> Self {
+    fn create(_gc: bool, compression: bool) -> Self {
         let mut d = automerge::AutoCommit::new();
         d.set_actor(automerge::ActorId::random());
         let text = d.put_object(ROOT, "text", ObjType::Text).unwrap();
