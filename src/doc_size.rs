@@ -1,6 +1,6 @@
-use indicatif::ProgressBar;
+use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Write};
 
 use crate::{
     automerge::get_automerge_actions, merge, AutomergeDoc, Crdt, DiamondTypeDoc, LoroDoc, YrsDoc,
@@ -34,9 +34,22 @@ fn gen_report<C: Crdt>(gc: bool, compression: bool) -> DocSizeReport {
         };
     }
     let actions = get_automerge_actions();
-    let bar = ProgressBar::new(actions.len() as u64);
-    for action in &actions {
-        bar.inc(1);
+    let total_len = actions.len() as u64;
+    let bar = ProgressBar::new(total_len);
+    bar.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos:>7}/{len:7} ({eta})",
+        )
+        .unwrap()
+        .with_key("eta", |state: &ProgressState, w: &mut dyn Write| {
+            write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+        })
+        .progress_chars("#>-"),
+    );
+    for (current, action) in actions.iter().enumerate() {
+        if current % 100 == 0 {
+            bar.set_position(current as u64);
+        }
         if action.del != 0 {
             crdt.text_del(action.pos, action.del);
         }
@@ -46,6 +59,7 @@ fn gen_report<C: Crdt>(gc: bool, compression: bool) -> DocSizeReport {
         }
     }
     let encoded = crdt.encode_full();
+    bar.set_position(total_len);
     bar.finish();
     println!(
         "{} gc {} compression {} doc_size {}",
@@ -89,9 +103,24 @@ fn gen_report_parallel<C: Crdt>(gc: bool, compression: bool) -> DocSizeReport {
     let mut rng: StdRng = SeedableRng::seed_from_u64(1);
 
     let mut actions = get_automerge_actions().into_iter();
-    let bar = ProgressBar::new(actions.len() as u64);
+    let total_len = actions.len() as u64;
+    let mut current = 0;
+    let bar = ProgressBar::new(total_len);
+    bar.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos:>7}/{len:7} ({eta})",
+        )
+        .unwrap()
+        .with_key("eta", |state: &ProgressState, w: &mut dyn Write| {
+            write!(w, "{:.1}s", state.eta().as_secs_f64()).unwrap()
+        })
+        .progress_chars("#>-"),
+    );
     while let Some(action) = actions.next() {
-        bar.inc(1);
+        if current % 100 == 0 {
+            bar.set_position(current);
+        }
+        current += 1;
         if action.del != 0 {
             crdt.text_del(action.pos, action.del);
         }
@@ -103,7 +132,7 @@ fn gen_report_parallel<C: Crdt>(gc: bool, compression: bool) -> DocSizeReport {
         let r = rng.gen_range(1..11);
         for _ in 0..r {
             if let Some(action) = actions.next() {
-                bar.inc(1);
+                current += 1;
                 if action.del != 0 {
                     crdt2.text_del(action.pos, action.del);
                 }
@@ -117,6 +146,7 @@ fn gen_report_parallel<C: Crdt>(gc: bool, compression: bool) -> DocSizeReport {
         merge(&mut crdt, &mut crdt2);
     }
     let encoded = crdt.encode_full();
+    bar.set_position(total_len);
     bar.finish();
     println!(
         "{} gc {} compression {} doc_size {}",
@@ -162,7 +192,7 @@ impl ReportTable {
 
         for (title, index) in [("", 0), ("gc", 1), ("compress", 2), ("gc & compress", 3)] {
             md.push_str(&format!("\n|{}|", title));
-            for crdt in [loro, automerge, diamond_type, yrs] {
+            for crdt in [loro, diamond_type, yrs] {
                 let size = crdt[index]
                     .doc_size
                     .map(|s| s.to_string())
@@ -195,7 +225,7 @@ fn per_crdt<C: Crdt>(table: &mut ReportTable, parallel: bool) {
 fn bench_document_size(parallel: bool) -> ReportTable {
     println!("Benchmarking doc size......");
     let mut report_table = ReportTable::new();
-    // per_crdt::<LoroDoc>(&mut report_table, parallel);
+    per_crdt::<LoroDoc>(&mut report_table, parallel);
     // per_crdt::<AutomergeDoc>(&mut report_table, parallel);
     per_crdt::<YrsDoc>(&mut report_table, parallel);
     per_crdt::<DiamondTypeDoc>(&mut report_table, parallel);

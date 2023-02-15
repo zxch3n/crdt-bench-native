@@ -1,9 +1,12 @@
+use std::io::{Read, Write};
+
 use yrs::{
     updates::decoder::Decode, Array, ArrayRef, Doc, GetString, Map, MapRef, Options, ReadTxn,
     StateVector, Text, TextRef, Transact, Update,
 };
 
 use crate::Crdt;
+use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 
 pub struct YrsDoc {
     doc: Doc,
@@ -21,8 +24,10 @@ impl Crdt for YrsDoc {
     }
 
     fn create(gc: bool, compression: bool) -> Self {
-        let mut options = Options::default();
-        options.skip_gc = !gc;
+        let options = Options {
+            skip_gc: !gc,
+            ..Default::default()
+        };
         let doc = Doc::with_options(options);
         YrsDoc {
             map: doc.get_or_insert_map("map"),
@@ -82,12 +87,33 @@ impl Crdt for YrsDoc {
     }
 
     fn encode_full(&mut self) -> Vec<u8> {
-        self.doc
+        let encoded = self
+            .doc
             .transact_mut()
-            .encode_state_as_update_v2(&Default::default())
+            .encode_state_as_update_v2(&Default::default());
+
+        if self.compression {
+            let mut ans = vec![];
+            {
+                let mut c = DeflateEncoder::new(&mut ans, Compression::default());
+                c.write_all(&encoded).unwrap();
+                c.try_finish().unwrap();
+            }
+            ans
+        } else {
+            encoded
+        }
     }
 
     fn decode_full(&mut self, update: &[u8]) {
+        let mut ans = vec![];
+        let update = if self.compression {
+            let mut c = DeflateDecoder::new(update);
+            c.read_to_end(&mut ans).unwrap();
+            &ans
+        } else {
+            update
+        };
         self.doc
             .transact_mut()
             .apply_update(Update::decode_v2(update).unwrap())
@@ -116,6 +142,6 @@ impl Crdt for YrsDoc {
     }
 
     fn compression(&self) -> Result<bool, bool> {
-        Err(false)
+        Ok(self.compression)
     }
 }
