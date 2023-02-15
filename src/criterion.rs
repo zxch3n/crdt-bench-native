@@ -5,10 +5,13 @@ use rand::{Rng, SeedableRng};
 
 use crate::{automerge, merge, Crdt};
 
+const GC: bool = false;
+const COMPRESSION: bool = false;
+
 pub fn bench_random_list_insert<C: Crdt>(n: usize) {
     let mut rng = rand::rngs::StdRng::seed_from_u64(123);
-    let mut crdt = C::create();
-    let mut crdt_new = C::create();
+    let mut crdt = C::create(GC, COMPRESSION);
+    let mut crdt_new = C::create(GC, COMPRESSION);
     for i in 0..n {
         crdt.list_insert(rng.gen::<usize>() % (i + 1), i as i32);
         merge(&mut crdt_new, &mut crdt);
@@ -26,7 +29,7 @@ fn concurrent_list_inserts<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
         b.iter(|| {
             let mut docs = vec![];
             for _ in 0..100 {
-                docs.push(C::create());
+                docs.push(C::create(GC, COMPRESSION));
             }
 
             for doc in docs.iter_mut() {
@@ -50,7 +53,7 @@ fn apply_automerge_paper<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
     let actions = automerge::get_automerge_actions();
     b.bench_function("automerge - apply", |b| {
         b.iter(|| {
-            let mut crdt = C::create();
+            let mut crdt = C::create(GC, COMPRESSION);
             for action in &actions {
                 if action.del != 0 {
                     crdt.text_del(action.pos, action.del);
@@ -62,7 +65,7 @@ fn apply_automerge_paper<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
             }
         })
     });
-    let mut crdt = C::create();
+    let mut crdt = C::create(GC, COMPRESSION);
     for action in &actions {
         if action.del != 0 {
             crdt.text_del(action.pos, action.del);
@@ -80,7 +83,7 @@ fn apply_automerge_paper<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
     let encoded = crdt.encode_full();
     b.bench_function("automerge - decode time", |b| {
         b.iter(|| {
-            let mut new_crdt = C::create();
+            let mut new_crdt = C::create(GC, COMPRESSION);
             new_crdt.decode_full(black_box(&encoded));
         })
     });

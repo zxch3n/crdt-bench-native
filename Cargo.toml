@@ -17,6 +17,7 @@ yrs = "0.16.2"
 automerge = "0.3.0"
 diamond-types = "1.0.0"
 arref = "0.1.0"
+indicatif = "0.17.3"
 
 [[bench]]
 name = "automerge"
