@@ -1,9 +1,12 @@
 use std::time::Duration;
 
 use criterion::{black_box, measurement::WallTime, BenchmarkGroup, Criterion};
-use rand::{Rng, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::{automerge, merge, Crdt};
+use crate::{
+    automerge::{self, get_automerge_actions},
+    merge, Crdt,
+};
 
 const GC: bool = false;
 const COMPRESSION: bool = false;
@@ -98,4 +101,56 @@ pub fn entry<C: Crdt>(name: &str) {
     list_random_insert_1k::<C>(&mut b);
     concurrent_list_inserts::<C>(&mut b);
     apply_automerge_paper::<C>(&mut b);
+}
+
+pub fn automerge_parallel<C: Crdt>(name: &str) {
+    let mut criterion: Criterion<_> = Criterion::default()
+        .configure_from_args()
+        .measurement_time(Duration::from_secs(1))
+        .sample_size(10);
+    let mut b = criterion.benchmark_group(name);
+    b.bench_function("parallel applying automerge edits", |b| {
+        b.iter(|| {
+            let mut crdt = C::create(false, false);
+            let mut crdt2 = C::create(false, false);
+            let mut rng: StdRng = SeedableRng::seed_from_u64(1);
+            let mut actions = get_automerge_actions().into_iter();
+            let mut len = 0;
+            while let Some(mut action) = actions.next() {
+                let mut a_len: isize = 0;
+                let mut b_len: isize = 0;
+                action.pos %= len as usize + 1;
+                action.del = action.del.min((len - a_len).max(0) as usize);
+                if action.del != 0 {
+                    a_len -= action.del as isize;
+                    crdt.text_del(action.pos, action.del);
+                }
+
+                if !action.ins.is_empty() {
+                    a_len += action.ins.len() as isize;
+                    crdt.text_insert(action.pos, &action.ins);
+                }
+                let r = rng.gen_range(1..11);
+                for _ in 0..r {
+                    if let Some(mut action) = actions.next() {
+                        action.pos %= len as usize + 1;
+                        action.del = action.del.min((len - a_len).max(0) as usize);
+                        if action.del != 0 {
+                            b_len -= action.del as isize;
+                            crdt2.text_del(action.pos, action.del);
+                        }
+                        if !action.ins.is_empty() {
+                            b_len += action.del as isize;
+                            crdt2.text_insert(action.pos, &action.ins);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                merge(&mut crdt, &mut crdt2);
+                len = a_len + b_len;
+                len = len.max(0);
+            }
+        })
+    });
 }

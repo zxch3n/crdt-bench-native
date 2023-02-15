@@ -1,4 +1,4 @@
-pub use crate::criterion::entry;
+pub use crate::criterion::{automerge_parallel, entry};
 
 mod automerge;
 mod crdt;

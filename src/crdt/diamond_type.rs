@@ -1,16 +1,46 @@
+use std::{collections::HashMap, rc::Rc};
+
 use crate::Crdt;
-use diamond_types::list::{
-    encoding::{EncodeOptions, ENCODE_FULL},
-    remote_ids::RemoteId,
-    ListCRDT,
+use diamond_types::{
+    list::{
+        encoding::{EncodeOptions, ENCODE_FULL, ENCODE_PATCH},
+        remote_ids::RemoteId,
+        ListCRDT,
+    },
+    LocalVersion,
 };
 use rand::Rng;
 
 pub struct DiamondTypeDoc {
     doc: ListCRDT,
-    _id: String,
+    _id: Rc<String>,
     compression: bool,
+    connections: HashMap<Rc<String>, LocalVersion>,
     gc: bool,
+}
+
+impl DiamondTypeDoc {
+    pub fn version(&self) -> Vec<RemoteId> {
+        self.doc.oplog.remote_version().into_iter().collect()
+    }
+
+    pub fn encode_for(&self, other: &Self) -> Vec<u8> {
+        if let Some(other_version) = self.connections.get(&other._id) {
+            self.doc.oplog.encode_from(ENCODE_PATCH, other_version)
+        } else {
+            self.doc.oplog.encode(ENCODE_FULL)
+        }
+    }
+
+    pub fn merge_other(&mut self, other: &Self, update: &[u8]) {
+        self.decode_full(update);
+        self.connections.insert(
+            other._id.clone(),
+            self.doc
+                .oplog
+                .remote_to_local_version(other.version().iter()),
+        );
+    }
 }
 
 impl Crdt for DiamondTypeDoc {
@@ -25,8 +55,9 @@ impl Crdt for DiamondTypeDoc {
         let _ = doc.get_or_create_agent_id(&id.to_string());
         DiamondTypeDoc {
             doc,
-            _id: id.to_string(),
+            _id: Rc::new(id.to_string()),
             compression,
+            connections: Default::default(),
             gc,
         }
     }
@@ -86,13 +117,8 @@ impl Crdt for DiamondTypeDoc {
     }
 
     fn merge(&mut self, other: &mut Self) {
-        // FIXME: not accurate. didn't find a api to do patch update directly.
-        // Currently the encode_from api requires that the given version is contained by the local version.
-        // It's not the case when two sites have parallel edits.
-        let a_to_b = self.doc.oplog.encode(EncodeOptions::default());
-        let b_to_a = other.doc.oplog.encode(EncodeOptions::default());
-        self.decode_full(&b_to_a);
-        other.decode_full(&a_to_b);
+        self.merge_other(other, &other.encode_for(self));
+        other.merge_other(self, &self.encode_for(other));
     }
 
     fn version(&self) -> Self::Version {
