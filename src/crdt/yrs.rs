@@ -138,7 +138,7 @@ impl Crdt for YrsDoc {
     }
 
     fn gc(&self) -> Result<bool, bool> {
-        Ok(self.doc.options().skip_gc)
+        Ok(!self.doc.options().skip_gc)
     }
 
     fn compression(&self) -> Result<bool, bool> {
