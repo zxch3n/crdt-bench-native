@@ -7,7 +7,7 @@ use crate::{
 };
 
 fn gen_report<C: Crdt>(gc: bool, compression: bool) -> Option<usize> {
-    let mut crdt = C::create(gc, compression);
+    let mut crdt = C::create(gc, compression, Some(1));
     let mut run = true;
     if let Err(support_gc) = crdt.gc() {
         run = support_gc == gc;
@@ -61,8 +61,8 @@ fn gen_report<C: Crdt>(gc: bool, compression: bool) -> Option<usize> {
 }
 
 fn gen_report_parallel<C: Crdt>(gc: bool, compression: bool) -> Option<usize> {
-    let mut crdt = C::create(gc, compression);
-    let mut crdt2 = C::create(gc, compression);
+    let mut crdt = C::create(gc, compression, Some(1));
+    let mut crdt2 = C::create(gc, compression, Some(2));
     let mut run = true;
     if let Err(support_gc) = crdt.gc() {
         run = support_gc == gc;
@@ -91,6 +91,7 @@ fn gen_report_parallel<C: Crdt>(gc: bool, compression: bool) -> Option<usize> {
         .progress_chars("#>-"),
     );
     let mut len = 0;
+    println!("actions {}", actions.len());
     while let Some(mut action) = actions.next() {
         if current % 100 == 0 {
             bar.set_position(current);

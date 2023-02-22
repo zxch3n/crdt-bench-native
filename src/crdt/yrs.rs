@@ -23,11 +23,14 @@ impl Crdt for YrsDoc {
         "yrs"
     }
 
-    fn create(gc: bool, compression: bool) -> Self {
-        let options = Options {
+    fn create(gc: bool, compression: bool, client_id: Option<u64>) -> Self {
+        let mut options = Options {
             skip_gc: !gc,
             ..Default::default()
         };
+        if client_id.is_some() {
+            options.client_id = client_id.unwrap();
+        }
         let doc = Doc::with_options(options);
         YrsDoc {
             map: doc.get_or_insert_map("map"),

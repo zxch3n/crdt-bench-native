@@ -7,7 +7,7 @@ pub mod yrs;
 pub trait Crdt: Sized {
     type Version;
     fn name() -> &'static str;
-    fn create(gc: bool, compression: bool) -> Self;
+    fn create(gc: bool, compression: bool, client_id: Option<u64>) -> Self;
     // return Ok if crdt supports gc, else return the default setting in Err
     fn gc(&self) -> Result<bool, bool>;
     fn compression(&self) -> Result<bool, bool>;

@@ -13,8 +13,8 @@ const COMPRESSION: bool = false;
 
 pub fn bench_random_list_insert<C: Crdt>(n: usize) {
     let mut rng = rand::rngs::StdRng::seed_from_u64(123);
-    let mut crdt = C::create(GC, COMPRESSION);
-    let mut crdt_new = C::create(GC, COMPRESSION);
+    let mut crdt = C::create(GC, COMPRESSION, None);
+    let mut crdt_new = C::create(GC, COMPRESSION, None);
     for i in 0..n {
         crdt.list_insert(rng.gen::<usize>() % (i + 1), i as i32);
         merge(&mut crdt_new, &mut crdt);
@@ -32,7 +32,7 @@ fn concurrent_list_inserts<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
         b.iter(|| {
             let mut docs = vec![];
             for _ in 0..100 {
-                docs.push(C::create(GC, COMPRESSION));
+                docs.push(C::create(GC, COMPRESSION, None));
             }
 
             for doc in docs.iter_mut() {
@@ -56,7 +56,7 @@ fn apply_automerge_paper<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
     let actions = automerge::get_automerge_actions();
     b.bench_function("automerge - apply", |b| {
         b.iter(|| {
-            let mut crdt = C::create(GC, COMPRESSION);
+            let mut crdt = C::create(GC, COMPRESSION, None);
             for action in &actions {
                 if action.del != 0 {
                     crdt.text_del(action.pos, action.del);
@@ -68,7 +68,7 @@ fn apply_automerge_paper<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
             }
         })
     });
-    let mut crdt = C::create(GC, COMPRESSION);
+    let mut crdt = C::create(GC, COMPRESSION, None);
     for action in &actions {
         if action.del != 0 {
             crdt.text_del(action.pos, action.del);
@@ -86,7 +86,7 @@ fn apply_automerge_paper<C: Crdt>(b: &mut BenchmarkGroup<WallTime>) {
     let encoded = crdt.encode_full();
     b.bench_function("automerge - decode time", |b| {
         b.iter(|| {
-            let mut new_crdt = C::create(GC, COMPRESSION);
+            let mut new_crdt = C::create(GC, COMPRESSION, None);
             new_crdt.decode_full(black_box(&encoded));
         })
     });
@@ -111,8 +111,8 @@ pub fn automerge_parallel<C: Crdt>(name: &str) {
     let mut b = criterion.benchmark_group(name);
     b.bench_function("parallel applying automerge edits", |b| {
         b.iter(|| {
-            let mut crdt = C::create(false, false);
-            let mut crdt2 = C::create(false, false);
+            let mut crdt = C::create(false, false, None);
+            let mut crdt2 = C::create(false, false, None);
             let mut rng: StdRng = SeedableRng::seed_from_u64(1);
             let mut actions = get_automerge_actions().into_iter();
             let mut len = 0;

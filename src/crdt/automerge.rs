@@ -18,9 +18,13 @@ impl Crdt for AutomergeDoc {
     fn name() -> &'static str {
         "automerge"
     }
-    fn create(_gc: bool, compression: bool) -> Self {
+    fn create(_gc: bool, compression: bool, client_id: Option<u64>) -> Self {
         let mut d = automerge::AutoCommit::new();
-        d.set_actor(automerge::ActorId::random());
+        if let Some(client_id) = client_id {
+            d.set_actor(automerge::ActorId::from(client_id.to_le_bytes().to_vec()));
+        } else {
+            d.set_actor(automerge::ActorId::random());
+        }
         let text = d.put_object(ROOT, "text", ObjType::Text).unwrap();
         let list = d.put_object(ROOT, "list", ObjType::List).unwrap();
         let map = d.put_object(ROOT, "map", ObjType::Map).unwrap();
@@ -90,6 +94,10 @@ impl Crdt for AutomergeDoc {
     }
 
     fn merge(&mut self, other: &mut Self) {
+        // other.doc.merge(&mut self.doc).unwrap();
+        // self.doc.merge(&mut other.doc).unwrap();
+        // return;
+
         let mut state_a = State::new();
         let mut state_b = State::new();
         // sync version

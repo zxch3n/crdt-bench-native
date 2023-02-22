@@ -49,9 +49,13 @@ impl Crdt for DiamondTypeDoc {
     fn name() -> &'static str {
         "diamond-type"
     }
-    fn create(gc: bool, compression: bool) -> Self {
+    fn create(gc: bool, compression: bool, client_id: Option<u64>) -> Self {
         let mut doc = ListCRDT::new();
-        let id: u64 = rand::thread_rng().gen();
+        let id = if client_id.is_some() {
+            client_id.unwrap()
+        } else {
+            rand::thread_rng().gen()
+        };
         let _ = doc.get_or_create_agent_id(&id.to_string());
         DiamondTypeDoc {
             doc,

@@ -16,8 +16,8 @@ impl Crdt for LoroDoc {
     fn name() -> &'static str {
         "loro"
     }
-    fn create(gc: bool, compression: bool) -> Self {
-        let mut doc = LoroCore::default();
+    fn create(gc: bool, compression: bool, client_id: Option<u64>) -> Self {
+        let mut doc = LoroCore::new(Default::default(), client_id);
         doc.gc(gc);
         let text = doc.get_text("text");
         let map = doc.get_map("map");
@@ -73,7 +73,7 @@ impl Crdt for LoroDoc {
     }
 
     fn encode_full(&mut self) -> Vec<u8> {
-        let mut cfg = EncodeConfig::snapshot();
+        let mut cfg = EncodeConfig::snapshot().with_default_compress();
         if !self.compression {
             cfg = cfg.without_compress();
         }
