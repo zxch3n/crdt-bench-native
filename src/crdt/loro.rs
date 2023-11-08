@@ -1,28 +1,30 @@
-use crate::Crdt;
-use loro_internal::{log_store::EncodeConfig, LoroCore};
+use std::sync::Arc;
 
-pub struct LoroDoc {
-    doc: LoroCore,
-    map: loro_internal::Map,
-    list: loro_internal::List,
-    text: loro_internal::Text,
+use crate::Crdt;
+use loro_internal::LoroDoc;
+
+pub struct Loro {
+    doc: LoroDoc,
+    map: loro_internal::MapHandler,
+    list: loro_internal::ListHandler,
+    text: loro_internal::TextHandler,
     compression: bool,
     // TODO: remove
     gc: bool,
 }
 
-impl Crdt for LoroDoc {
+impl Crdt for Loro {
     type Version = Vec<u8>;
     fn name() -> &'static str {
         "loro"
     }
-    fn create(gc: bool, compression: bool, client_id: Option<u64>) -> Self {
-        let mut doc = LoroCore::new(Default::default(), client_id);
-        doc.gc(gc);
+
+    fn create(gc: bool, compression: bool) -> Self {
+        let doc = LoroDoc::new_auto_commit();
         let text = doc.get_text("text");
         let map = doc.get_map("map");
         let list = doc.get_list("list");
-        LoroDoc {
+        Loro {
             doc,
             map,
             list,
@@ -33,74 +35,70 @@ impl Crdt for LoroDoc {
     }
 
     fn text_insert(&mut self, pos: usize, text: &str) {
-        self.text.insert(&self.doc, pos, text).unwrap();
+        self.text.insert_(pos, text).unwrap();
     }
 
     fn text_del(&mut self, pos: usize, len: usize) {
-        self.text.delete(&self.doc, pos, len).unwrap();
+        self.text.delete_(pos, len).unwrap();
     }
 
     fn get_text(&mut self) -> Box<str> {
-        self.text.get_value().into_string().unwrap()
+        let s = {
+            let this = self.text.get_value().into_string().unwrap();
+            Arc::try_unwrap(this).unwrap_or_else(|arc| (*arc).clone())
+        };
+        s.into_boxed_str()
     }
 
     fn list_insert(&mut self, pos: usize, num: i32) {
-        self.list.insert(&self.doc, pos, num).unwrap();
+        self.list.insert_(pos, num.into()).unwrap();
     }
 
     fn get_list(&mut self) -> Vec<i32> {
-        self.list
-            .get_value()
-            .into_list()
-            .unwrap()
-            .into_iter()
-            .map(|v| v.into_i32().unwrap())
-            .collect()
+        let vec = self.list.get_value().into_list().unwrap();
+        vec.iter().map(|v| *v.as_i32().unwrap()).collect()
     }
 
     fn map_insert(&mut self, key: &str, num: i32) {
-        self.map.insert(&self.doc, key, num).unwrap();
+        self.map.insert_(key, num.into()).unwrap();
     }
 
     fn get_map(&mut self) -> std::collections::HashMap<String, i32> {
-        self.map
-            .get_value()
-            .into_map()
-            .unwrap()
+        let hash_map = {
+            let this = self.map.get_value().into_map().unwrap();
+            Arc::try_unwrap(this).unwrap_or_else(|arc| (*arc).clone())
+        };
+        hash_map
             .into_iter()
             .map(|(k, v)| (k, v.into_i32().unwrap()))
             .collect()
     }
 
     fn encode_full(&mut self) -> Vec<u8> {
-        let mut cfg = EncodeConfig::snapshot().with_default_compress();
-        if !self.compression {
-            cfg = cfg.without_compress();
-        }
-        self.doc.encode_with_cfg(cfg)
+        self.doc.export_snapshot()
     }
 
     fn decode_full(&mut self, update: &[u8]) {
-        self.doc.decode(update).unwrap()
+        self.doc.import(update).unwrap()
     }
 
     fn merge(&mut self, other: &mut Self) {
-        let a_to_b = self.doc.encode_from(other.doc.vv_cloned());
-        let b_to_a = other.doc.encode_from(self.doc.vv_cloned());
-        self.doc.decode(&b_to_a).unwrap();
-        other.doc.decode(&a_to_b).unwrap();
+        let a_to_b = self.doc.export_from(&other.doc.oplog_vv());
+        let b_to_a = other.doc.export_from(&self.doc.oplog_vv());
+        self.doc.import(&b_to_a).unwrap();
+        other.doc.import(&a_to_b).unwrap();
     }
 
     fn version(&self) -> Self::Version {
-        self.doc.vv_cloned().encode()
+        self.doc.oplog_vv().encode()
     }
 
     fn list_del(&mut self, pos: usize, len: usize) {
-        self.list.delete(&self.doc, pos, len).unwrap();
+        self.list.delete_(pos, len).unwrap();
     }
 
     fn map_del(&mut self, key: &str) {
-        self.map.delete(&self.doc, key).unwrap();
+        self.map.delete_(key).unwrap();
     }
 
     fn gc(&self) -> Result<bool, bool> {

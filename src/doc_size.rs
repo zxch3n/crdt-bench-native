@@ -3,7 +3,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::{collections::HashMap, fmt::Write};
 
 use crate::{
-    automerge::get_automerge_actions, merge, AutomergeDoc, Crdt, DiamondTypeDoc, LoroDoc, YrsDoc,
+    automerge::get_automerge_actions, merge, AutomergeDoc, Crdt, DiamondTypeDoc, Loro, YrsDoc,
 };
 
 fn gen_report<C: Crdt>(gc: bool, compression: bool) -> Option<usize> {
@@ -164,7 +164,7 @@ impl ReportTable {
 
     fn to_all_md(&self) -> String {
         let mut md = String::new();
-        let loro = self.0.get(LoroDoc::name()).unwrap();
+        let loro = self.0.get(Loro::name()).unwrap();
         let automerge = self.0.get(AutomergeDoc::name()).unwrap();
         let diamond_type = self.0.get(DiamondTypeDoc::name()).unwrap();
         let yrs = self.0.get(YrsDoc::name()).unwrap();
@@ -202,7 +202,7 @@ fn per_crdt<C: Crdt>(table: &mut ReportTable, parallel: bool) {
 fn bench_document_size(parallel: bool) -> ReportTable {
     println!("Benchmarking doc size......");
     let mut report_table = ReportTable::new();
-    per_crdt::<LoroDoc>(&mut report_table, parallel);
+    per_crdt::<Loro>(&mut report_table, parallel);
     per_crdt::<AutomergeDoc>(&mut report_table, parallel);
     per_crdt::<YrsDoc>(&mut report_table, parallel);
     per_crdt::<DiamondTypeDoc>(&mut report_table, parallel);
