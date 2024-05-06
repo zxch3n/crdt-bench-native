@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use crate::Crdt;
-use loro_internal::LoroDoc;
+use loro::LoroDoc;
 
 pub struct Loro {
     doc: LoroDoc,
-    map: loro_internal::MapHandler,
-    list: loro_internal::ListHandler,
-    text: loro_internal::TextHandler,
+    map: loro::LoroMap,
+    list: loro::LoroList,
+    text: loro::LoroText,
     compression: bool,
     // TODO: remove
     gc: bool,
@@ -19,8 +19,11 @@ impl Crdt for Loro {
         "loro"
     }
 
-    fn create(gc: bool, compression: bool) -> Self {
-        let doc = LoroDoc::new_auto_commit();
+    fn create(gc: bool, compression: bool, peer: Option<u64>) -> Self {
+        let doc = LoroDoc::new();
+        if let Some(peer) = peer {
+            doc.set_peer_id(peer).unwrap();
+        }
         let text = doc.get_text("text");
         let map = doc.get_map("map");
         let list = doc.get_list("list");
@@ -35,32 +38,28 @@ impl Crdt for Loro {
     }
 
     fn text_insert(&mut self, pos: usize, text: &str) {
-        self.text.insert_(pos, text).unwrap();
+        self.text.insert(pos, text).unwrap();
     }
 
     fn text_del(&mut self, pos: usize, len: usize) {
-        self.text.delete_(pos, len).unwrap();
+        self.text.delete(pos, len).unwrap();
     }
 
     fn get_text(&mut self) -> Box<str> {
-        let s = {
-            let this = self.text.get_value().into_string().unwrap();
-            Arc::try_unwrap(this).unwrap_or_else(|arc| (*arc).clone())
-        };
-        s.into_boxed_str()
+        self.text.to_string().into_boxed_str()
     }
 
     fn list_insert(&mut self, pos: usize, num: i32) {
-        self.list.insert_(pos, num.into()).unwrap();
+        self.list.insert(pos, num).unwrap();
     }
 
     fn get_list(&mut self) -> Vec<i32> {
         let vec = self.list.get_value().into_list().unwrap();
-        vec.iter().map(|v| *v.as_i32().unwrap()).collect()
+        vec.iter().map(|v| *v.as_i64().unwrap() as i32).collect()
     }
 
     fn map_insert(&mut self, key: &str, num: i32) {
-        self.map.insert_(key, num.into()).unwrap();
+        self.map.insert(key, num).unwrap();
     }
 
     fn get_map(&mut self) -> std::collections::HashMap<String, i32> {
@@ -70,7 +69,7 @@ impl Crdt for Loro {
         };
         hash_map
             .into_iter()
-            .map(|(k, v)| (k, v.into_i32().unwrap()))
+            .map(|(k, v)| (k, v.into_i64().unwrap() as i32))
             .collect()
     }
 
@@ -94,11 +93,11 @@ impl Crdt for Loro {
     }
 
     fn list_del(&mut self, pos: usize, len: usize) {
-        self.list.delete_(pos, len).unwrap();
+        self.list.delete(pos, len).unwrap();
     }
 
     fn map_del(&mut self, key: &str) {
-        self.map.delete_(key).unwrap();
+        self.map.delete(key).unwrap();
     }
 
     fn gc(&self) -> Result<bool, bool> {

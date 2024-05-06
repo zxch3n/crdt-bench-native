@@ -42,7 +42,9 @@ impl Crdt for AutomergeDoc {
     }
 
     fn text_del(&mut self, pos: usize, len: usize) {
-        self.doc.splice_text(&self.text, pos, len, "").unwrap();
+        self.doc
+            .splice_text(&self.text, pos, len as isize, "")
+            .unwrap();
     }
 
     fn get_text(&mut self) -> Box<str> {
@@ -55,7 +57,7 @@ impl Crdt for AutomergeDoc {
     }
 
     fn list_del(&mut self, pos: usize, len: usize) {
-        self.doc.splice(&self.list, pos, len, []).unwrap();
+        self.doc.splice(&self.list, pos, len as isize, []).unwrap();
     }
 
     fn get_list(&mut self) -> Vec<i32> {
@@ -118,7 +120,9 @@ impl Crdt for AutomergeDoc {
             .unwrap();
 
         // sync state
-        let Some(to_b) = self.doc.sync().generate_sync_message(&mut state_a) else { return };
+        let Some(to_b) = self.doc.sync().generate_sync_message(&mut state_a) else {
+            return;
+        };
         let to_a = other
             .doc
             .sync()

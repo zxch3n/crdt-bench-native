@@ -8,13 +8,13 @@ edition = "2021"
 [dependencies]
 rand = "0.8.5"
 criterion = "0.4.0"
-loro-internal = { path = "../loro/crates/loro-internal" }
+loro = "0.5.1"
 arbitrary = { version = "1.2.0", features = ["derive"] }
 enum-as-inner = "0.5.1"
 flate2 = "1.0.25"
 serde_json = "1.0.89"
-yrs = "0.16.2"
-automerge = "0.3.0"
+yrs = "0.18.7"
+automerge = "0.5.10"
 diamond-types = "1.0.0"
 arref = "0.1.0"
 indicatif = "0.17.3"
